@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mini CRM Dashboard</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #f4f6f8;
+        }
+
+        .layout {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 220px;
+            height: 100vh;
+            background: #111827;
+            color: white;
+            padding: 20px;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 20px;
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background: transparent;
+            border: 1px solid #374151;
+            color: white;
+            cursor: pointer;
+        }
+
+        .sidebar button:hover {
+            background: #374151;
+        }
+
+        .main {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 10px;
+        }
+
+        .card {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .topbar {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        input {
+            padding: 8px;
+            width: 200px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        table {
+            width: 100%;
+            background: white;
+            border-collapse: collapse;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #2563eb;
+            color: white;
+            padding: 10px;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            width: 300px;
+            margin: 100px auto;
+            border-radius: 10px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h2>CRM</h2>
+
+        <button onclick="loadClients()">Clients</button>
+        <button onclick="loadPartners()">Partners</button>
+        <button onclick="openModal()">+ Add</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <h1>Dashboard</h1>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Total Records</h3>
+                <p id="totalClients">0</p>
+            </div>
+        </div>
+
+        <div class="topbar">
+            <input id="search" placeholder="Search..." onkeyup="filterClients()">
+            <button onclick="loadClients()">Refresh Clients</button>
+            <button onclick="loadPartners()">Refresh Partners</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>First</th>
+                    <th>Last</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Company</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody id="clientTable"></tbody>
+        </table>
+
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+
+        <h3>Add / Edit</h3>
+
+        <input id="first_name" placeholder="First name">
+        <input id="last_name" placeholder="Last name">
+        <input id="email" placeholder="Email">
+        <input id="phone" placeholder="Phone">
+        <input id="company" placeholder="Company">
+
+        <button onclick="saveClient()" id="saveBtn">Save</button>
+        <button onclick="closeModal()">Close</button>
+
+    </div>
+</div>
+
+<script>
+const API_URL = "http://127.0.0.1:8000";
+
+let clientsData = [];
+let partnersData = [];
+let editingId = null;
+let currentView = "clients";
+
+/* ---------------- CLIENTS ---------------- */
+async function loadClients() {
+    currentView = "clients";
+
+    const res = await fetch(`${API_URL}/clients`, {
+        headers: {
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+    });
+
+    clientsData = await res.json();
+
+    renderTable(clientsData);
+    document.getElementById("totalClients").innerText = clientsData.length;
+}
+
+/* ---------------- PARTNERS ---------------- */
+async function loadPartners() {
+    currentView = "partners";
+
+    const res = await fetch(`${API_URL}/partners`, {
+        headers: {
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+    });
+
+    partnersData = await res.json();
+
+    renderTable(partnersData);
+    document.getElementById("totalClients").innerText = partnersData.length;
+}
+
+/* ---------------- TABLE ---------------- */
+function renderTable(data) {
+    const tbody = document.getElementById("clientTable");
+    tbody.innerHTML = "";
+
+    data.forEach(c => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${c.id}</td>
+                <td>${c.first_name}</td>
+                <td>${c.last_name}</td>
+                <td>${c.email}</td>
+                <td>${c.phone}</td>
+                <td>${c.company}</td>
+                <td>
+                    <button onclick="editItem(${c.id})">Edit</button>
+                    <button onclick="deleteItem(${c.id})">Delete</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+/* ---------------- MODAL ---------------- */
+function openModal() {
+    document.getElementById("modal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    editingId = null;
+    clearForm();
+}
+
+/* ---------------- SAVE ---------------- */
+async function saveClient() {
+
+    const payload = {
+        first_name: document.getElementById("first_name").value,
+        last_name: document.getElementById("last_name").value,
+        email: document.getElementById("email").value,
+        phone: document.getElementById("phone").value,
+        company: document.getElementById("company").value
+    };
+
+    const endpoint = currentView === "clients" ? "clients" : "partners";
+
+    const url = editingId
+        ? `${API_URL}/${endpoint}/${editingId}`
+        : `${API_URL}/${endpoint}`;
+
+    const method = editingId ? "PATCH" : "POST";
+
+    await fetch(url, {
+        method,
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    closeModal();
+
+    currentView === "clients" ? loadClients() : loadPartners();
+}
+
+/* ---------------- EDIT ---------------- */
+function editItem(id) {
+    const list = currentView === "clients" ? clientsData : partnersData;
+    const item = list.find(x => x.id === id);
+
+    editingId = id;
+
+    document.getElementById("first_name").value = item.first_name;
+    document.getElementById("last_name").value = item.last_name;
+    document.getElementById("email").value = item.email;
+    document.getElementById("phone").value = item.phone;
+    document.getElementById("company").value = item.company;
+
+    openModal();
+}
+
+/* ---------------- DELETE ---------------- */
+async function deleteItem(id) {
+    const endpoint = currentView === "clients" ? "clients" : "partners";
+
+    await fetch(`${API_URL}/${endpoint}/${id}`, {
+        method: "DELETE",
+        headers: {
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+    });
+
+    currentView === "clients" ? loadClients() : loadPartners();
+}
+
+/* ---------------- SEARCH ---------------- */
+function filterClients() {
+    const q = document.getElementById("search").value.toLowerCase();
+
+    const list = currentView === "clients" ? clientsData : partnersData;
+
+    const filtered = list.filter(c =>
+        c.first_name.toLowerCase().includes(q) ||
+        c.last_name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.company.toLowerCase().includes(q)
+    );
+
+    renderTable(filtered);
+}
+
+/* ---------------- CLEAR ---------------- */
+function clearForm() {
+    document.getElementById("first_name").value = "";
+    document.getElementById("last_name").value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("phone").value = "";
+    document.getElementById("company").value = "";
+}
+
+/* ---------------- INIT ---------------- */
+loadClients();
+</script>
+
+</body>
+</html>
